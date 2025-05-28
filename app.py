@@ -566,6 +566,81 @@ int main() {
 """
 
 
+@app.route('/sema')
+def ouo():
+    return """
+            #include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <unistd.h>
+
+#define SIZE 3  // Buffer size
+
+int buffer[SIZE];
+int in = 0, out = 0;
+int item = 0;
+
+sem_t empty;  // Counts empty slots
+sem_t full;   // Counts filled slots
+sem_t mutex;  // For mutual exclusion
+
+void* producer(void* arg) {
+    for (int i = 0; i < 10; i++) {
+        sem_wait(&empty);   // Wait if buffer is full
+        sem_wait(&mutex);   // Lock the buffer
+
+        item++;
+        buffer[in] = item;
+        printf("Producer produced item %d\n", item);
+        in = (in + 1) % SIZE;
+
+        sem_post(&mutex);   // Unlock the buffer
+        sem_post(&full);    // Signal that buffer has more items
+
+        sleep(1);           // Simulate time delay
+    }
+    return NULL;
+}
+
+void* consumer(void* arg) {
+    for (int i = 0; i < 10; i++) {
+        sem_wait(&full);    // Wait if buffer is empty
+        sem_wait(&mutex);   // Lock the buffer
+
+        int data = buffer[out];
+        printf("Consumer consumed item %d\n", data);
+        out = (out + 1) % SIZE;
+
+        sem_post(&mutex);   // Unlock the buffer
+        sem_post(&empty);   // Signal that buffer has an empty slot
+
+        sleep(1);           // Simulate time delay
+    }
+    return NULL;
+}
+
+int main() {
+    pthread_t p, c;
+
+    sem_init(&empty, 0, SIZE);  // Start with all slots empty
+    sem_init(&full, 0, 0);      // No items in buffer
+    sem_init(&mutex, 0, 1);     // Only one thread can access buffer at a time
+
+    pthread_create(&p, NULL, producer, NULL);
+    pthread_create(&c, NULL, consumer, NULL);
+
+    pthread_join(p, NULL);
+    pthread_join(c, NULL);
+
+    sem_destroy(&empty);
+    sem_destroy(&full);
+    sem_destroy(&mutex);
+
+    return 0;
+}
+"""
+
+
 
 
 if __name__ == '__main__':
